@@ -1040,6 +1040,7 @@ NFCSTATUS Mfc_Transceive(uint8_t *p_data, uint32_t len)
         NdefMap->SendRecvBuf[i++] = p_data[9];
         NdefMap->SendRecvBuf[i++] = p_data[10];
         NdefMap->SendRecvBuf[i++] = p_data[11];
+        NdefMap->SendLength = len-1;
 
         status = phFriNfc_ExtnsTransceive(NdefMap->pTransceiveInfo,
                               NdefMap->Cmd,
