@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,6 +65,7 @@
  * Mifare standard - Update MAD block flag
 */
 #define  PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_1K        {0xA0,0xA1,0xA2,0xA3,0xA4,0xA5,0x78,0x77,0x88,0xC1}
+#define  PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_2K        {0xA0,0xA1,0xA2,0xA3,0xA4,0xA5,0x78,0x77,0x88,0xC1}
 #define  PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_4K        {0xA0,0xA1,0xA2,0xA3,0xA4,0xA5,0x78,0x77,0x88,0xC2}
 #define  PH_FRINFC_SMTCRDFMT_NFCFORUMSECT_KEYA_ACS_BIT           {0xD3,0xF7,0xD3,0xF7,0xD3,0xF7,0x7F,0x07,0x88,0x40}
 
@@ -132,9 +133,11 @@ PH_FRINFC_MFSTD_FMT_VAL_11
 #define PH_FRINFC_MFSTD_FMT_MAX_RECV_LENGTH     252 /* Maximum receive length */
 #define PH_FRINFC_MFSTD_FMT_WR_SEND_LENGTH      17  /* Send length for write */
 #define PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_1K     16  /* Maximum sector index for Mifare 1k = 16 */
+#define PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_2K     32  /* Maximum sector index for Mifare 2k = 32 */
 #define PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K     40  /* Maximum sector index for Mifare 4k = 40 */
-#define PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_1K       64  /* Maximum sector index for Mifare 1k = 16 */
-#define PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_4K       256 /* Maximum sector index for Mifare 4k = 40 */
+#define PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_1K       64  /* Maximum Number of Blocks for Mifare 1k = 64 */
+#define PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_2K       128 /* Maximum Number of Blocks for Mifare 2k = 128 */
+#define PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_4K       256 /* Maximum Number of Blocks for Mifare 4k = 256*/
 
 /*
  * Copy default keyA to send buffer
@@ -211,12 +214,15 @@ do \
  * Check the sector block
  */
 #define PH_FRINFC_MFSTD_FMT_CUR_BLK_CHK\
-                    ((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD) && \
+                    (((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD) && \
                     (NdefSmtCrdFmt->AddInfo.MfStdInfo.CurrentBlock >= \
                     PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_1K)) || \
                     ((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD) && \
                     (NdefSmtCrdFmt->AddInfo.MfStdInfo.CurrentBlock >= \
-                    PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_4K))
+                    PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_4K)) || \
+                    ((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD) && \
+                    (NdefSmtCrdFmt->AddInfo.MfStdInfo.CurrentBlock >= \
+                    PH_FRINFC_MFSTD_FMT_MAX_BLOCKS_2K)))
 
 /*
  * Get the next authenticate state

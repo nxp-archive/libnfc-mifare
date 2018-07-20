@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,10 +131,12 @@
 #define PH_FRINFC_MIFARESTD_SECTOR_NO0                    0  /* Sector 0 */
 #define PH_FRINFC_MIFARESTD_SECTOR_NO1                    1  /* Sector 1 */
 #define PH_FRINFC_MIFARESTD_SECTOR_NO16                   16 /* Sector 16 */
+#define PH_FRINFC_MIFARESTD_SECTOR_NO31                   31 /* Sector 31 */
 #define PH_FRINFC_MIFARESTD_SECTOR_NO39                   39 /* Sector 39 */
 #define PH_FRINFC_MIFARESTD_SECTOR_NO32                   32 /* Sector 32 */
 #define PH_FRINFC_MIFARESTD4K_TOTAL_SECTOR                40 /* Sector 40 */
-#define PH_FRINFC_MIFARESTD1K_TOTAL_SECTOR                16 /* Sector 40 */
+#define PH_FRINFC_MIFARESTD1K_TOTAL_SECTOR                16 /* Sector 16 */
+#define PH_FRINFC_MIFARESTD2K_TOTAL_SECTOR                32 /* Sector 32 */
 #define PH_FRINFC_MIFARESTD_BYTES_READ                    16 /* Bytes read */
 #define PH_FRINFC_MIFARESTD_BLOCK_BYTES                   16 /* Bytes per block */
 #define PH_FRINFC_MIFARESTD_SECTOR_BLOCKS                 16 /* Blocks per sector */
@@ -143,6 +145,8 @@
 #define PH_FRINFC_MIFARESTD4K_MAX_BLOCKS                  210 /* Maximum number of Mifare 4k Blocks
                                                                 excluding sector trailer */
 #define PH_FRINFC_MIFARESTD1K_MAX_BLK                     63 /* Maximum number of Mifare 1k blocks
+                                                                including the sector trailer*/
+#define PH_FRINFC_MIFARESTD2K_MAX_BLK                     127 /* Maximum number of Mifare 2k blocks
                                                                 including the sector trailer*/
 #define PH_FRINFC_MIFARESTD4K_MAX_BLK                     254 /* Maximum number of Mifare 4k blocks
                                                                 including the sector trailer*/
@@ -169,6 +173,8 @@
 #define PH_FRINFC_MIFARESTD_VAL14                         14 /* Value initialised to 14 */
 #define PH_FRINFC_MIFARESTD_VAL15                         15 /* Value initialised to 15 */
 #define PH_FRINFC_MIFARESTD_VAL16                         16 /* Value initialised to 16 */
+#define PH_FRINFC_MIFARESTD_VAL31                         31 /* Value initialised to 31 */
+#define PH_FRINFC_MIFARESTD_VAL32                         32 /* Value initialised to 32 */
 #define PH_FRINFC_MIFARESTD_NDEFTLV_L                     0xFF /* Length of the TLV */
 #define PH_FRINFC_MIFARESTD_NDEFTLV_T                     0x03 /* Length of the TLV */
 #define PH_FRINFC_MIFARESTD_NDEFTLV_L0                    0x00 /* Length of the TLV */

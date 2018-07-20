@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #include <phNfcCompId.h>
 #include <phNxpExtns_MifareStd.h>
 #include <phFriNfc_MifareStdMap.h>
+#include <phNxpLog.h>
 
 /**************** local methods used in this file only ************************/
 static NFCSTATUS phFriNfc_MifStd_H_RdABlock(phFriNfc_NdefMap_t *NdefMap);
@@ -166,7 +167,8 @@ NFCSTATUS phFriNfc_MapTool_SetCardState(phFriNfc_NdefMap_t  *NdefMap,
                     NdefMap->CardState:
                     PH_NDEFMAP_CARD_STATE_READ_WRITE);
                     if (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD ||
-                    NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)
+                        NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD ||
+                        NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)
                     {
                         if(NdefMap->StdMifareContainer.ReadOnlySectorIndex &&
                            NdefMap->StdMifareContainer.SectorTrailerBlockNo == NdefMap->StdMifareContainer.currentBlock )
@@ -346,6 +348,18 @@ NFCSTATUS phFriNfc_MifareStdMap_ChkNdef( phFriNfc_NdefMap_t     *NdefMap)
                                                 NdefMap->StdMifareContainer.remainingSize);
             NdefMap->CardType = PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD;
         }
+        else if (0x19 == (sak & 0x19))
+        {
+            /* Total Number of Blocks in Mifare 2k Card */
+            NdefMap->StdMifareContainer.NoOfNdefCompBlocks =
+                                        PH_FRINFC_NDEFMAP_MIFARESTD_2KNDEF_COMPBLOCK;
+            NdefMap->StdMifareContainer.remainingSize =
+                                            ((NdefMap->CardType == PH_FRINFC_MIFARESTD_VAL0) ?
+                                            (PH_FRINFC_NDEFMAP_MIFARESTD_2KNDEF_COMPBLOCK *
+                                            PH_FRINFC_MIFARESTD_BLOCK_BYTES) :
+                                            NdefMap->StdMifareContainer.remainingSize);
+            NdefMap->CardType = PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD;
+        }
         else
         {
              /* Total Number of Blocks in Mifare 4k Card */
@@ -388,10 +402,14 @@ NFCSTATUS phFriNfc_MifareStdMap_ChkNdef( phFriNfc_NdefMap_t     *NdefMap)
         }
         else
         {
-            /*  Mifare 1k, sak = 0x08 atq = 0x04
-                Mifare 4k, sak = 0x38 atq = 0x02 */
+            /**
+             * Mifare 1k, sak = 0x08 atq = 0x04
+             * Mifare 2k, sak = 0x19 atq = 0x02
+             * Mifare 4k, sak = 0x18 atq = 0x02
+             */
             if ((NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD) ||
-                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD))
+                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD) ||
+                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD))
             {
                 /* Change the state to Check Ndef Compliant */
                 NdefMap->State = PH_FRINFC_NDEFMAP_STATE_CHK_NDEF_COMP;
@@ -660,7 +678,6 @@ void phFriNfc_MifareStdMap_Process( void       *Context,
                 break;
 
             case PH_FRINFC_NDEFMAP_STATE_READ:
-
                 /* Receive Length for read shall always be equal to 16 */
                 if((*NdefMap->SendRecvLength == PH_FRINFC_MIFARESTD_BYTES_READ) &&
                     (NdefMap->ApduBuffIndex < (uint16_t)NdefMap->ApduBufferSize))
@@ -885,10 +902,11 @@ void phFriNfc_MifareStdMap_Process( void       *Context,
                     NdefMap->StdMifareContainer.FirstReadFlag = PH_FRINFC_MIFARESTD_FLAG0;
                     Status = phFriNfc_MifStd_H_AuthSector(NdefMap);
                 }
-                else if((NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD ||
-                         NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD) &&
-                        (NdefMap->StdMifareContainer.ReadOnlySectorIndex &&
-                         NdefMap->StdMifareContainer.SectorTrailerBlockNo ==  NdefMap->StdMifareContainer.currentBlock))
+                else if ((NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD ||
+                          NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+                          NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD) &&
+                         (NdefMap->StdMifareContainer.ReadOnlySectorIndex &&
+                          NdefMap->StdMifareContainer.SectorTrailerBlockNo ==  NdefMap->StdMifareContainer.currentBlock))
                 {
                     NdefMap->StdMifareContainer.ReadOnlySectorIndex =
                         PH_FRINFC_MIFARESTD_FLAG0;
@@ -969,17 +987,9 @@ void phFriNfc_MifareStdMap_Process( void       *Context,
                 PH_FRINFC_MIFARESTD_VAL1:
                 NdefMap->StdMifareContainer.WrLength);
         }
-        /*if(NdefMap->StdMifareContainer.WrLength != PH_FRINFC_MIFARESTD_VAL0)
+        if (NdefMap->StdMifareContainer.WrLength == PH_FRINFC_MIFARESTD_VAL0)
         {
-            Status = NFCSTATUS_SUCCESS;
-            NdefMap->StdMifareContainer.ReadCompleteFlag =
-                                    PH_FRINFC_MIFARESTD_FLAG1;
-            *NdefMap->WrNdefPacketLength = NdefMap->ApduBuffIndex;
-            CRFlag = PH_FRINFC_MIFARESTD_FLAG1;
-        }
-        else*/ if(NdefMap->StdMifareContainer.WrLength == PH_FRINFC_MIFARESTD_VAL0)
-        {
-            Status = PHNFCSTVAL(CID_FRI_NFC_NDEF_MAP,
+            Status = PHNFCSTVAL (CID_FRI_NFC_NDEF_MAP,
                                 NFCSTATUS_EOF_NDEF_CONTAINER_REACHED);
             CRFlag = PH_FRINFC_MIFARESTD_FLAG1;
         }
@@ -1309,7 +1319,8 @@ static NFCSTATUS phFriNfc_MifStd_H_AuthSector(phFriNfc_NdefMap_t *NdefMap)
     }
 
     if (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD ||
-        NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)
+        NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+        NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)
     {
         if (NdefMap->StdMifareContainer.ReadOnlySectorIndex &&
             NdefMap->StdMifareContainer.SectorTrailerBlockNo ==  NdefMap->StdMifareContainer.currentBlock)
@@ -1464,6 +1475,19 @@ static void phFriNfc_MifStd_H_fillAIDarray(phFriNfc_NdefMap_t *NdefMap)
                                     PH_FRINFC_MIFARESTD_NON_NDEF_COMP;
         }
     }
+    else if ((NdefMap->StdMifareContainer.aidCompleteFlag == PH_FRINFC_MIFARESTD_FLAG1) &&
+             (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD))
+    {
+        /* for Mifare 2k there are 32 sectors, till this number all sectors
+           are made NOT NDEF compliant */
+        for (byteindex = NdefMap->StdMifareContainer.SectorIndex;
+             byteindex < PH_FRINFC_MIFARESTD2K_TOTAL_SECTOR;
+             byteindex++)
+        {
+            NdefMap->StdMifareContainer.aid[byteindex] =
+                                   PH_FRINFC_MIFARESTD_NON_NDEF_COMP;
+        }
+    }
     else
     {
         /* for Mifare 4k there are 40 sectors, till this number all sectors
@@ -1523,6 +1547,38 @@ static NFCSTATUS phFriNfc_MifStd_H_BlkChk(phFriNfc_NdefMap_t *NdefMap)
                 phFriNfc_MifStd1k_H_BlkChk(NdefMap, SectorID, &callbreak);
             }
         } /* End of if */ /* End of Mifare 1k check */
+        else if (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD) /* Mifare 2k check starts here */
+        {
+             /* Sector > 39 no ndef compliant sectors found*/
+            if (SectorID > PH_FRINFC_MIFARESTD_SECTOR_NO31)
+            {
+                 /*Error: No Ndef Compliant Sectors present */
+                Result = PHNFCSTVAL (CID_FRI_NFC_NDEF_MAP,
+                                    NFCSTATUS_INVALID_PARAMETER);
+                callbreak = 1;
+            }
+            else if (NdefMap->StdMifareContainer.currentBlock == PH_FRINFC_MIFARESTD_MAD_BLK64)
+            {
+                NdefMap->StdMifareContainer.currentBlock += PH_FRINFC_MIFARESTD_BLK4;
+            }
+            else if (SectorID < PH_FRINFC_MIFARESTD_SECTOR_NO32) /* sector < 32 contains 4 blocks in each sector */
+            {
+                 /* If the block checked is 63, the 3 blocks after this
+                     are AID(MAD) blocks so its need to be skipped */
+                if (NdefMap->StdMifareContainer.currentBlock == PH_FRINFC_MIFARESTD_MAD_BLK63)
+                {
+                    NdefMap->StdMifareContainer.currentBlock += PH_FRINFC_MIFARESTD_BLK4;
+                }
+                else
+                {
+                    phFriNfc_MifStd1k_H_BlkChk (NdefMap, SectorID, &callbreak);
+                }
+            }
+            else
+            {
+                phFriNfc_MifStd1k_H_BlkChk (NdefMap, SectorID, &callbreak);
+            }
+        }/* End of if*/ /* End of Mifare 2k check*/
         else /* Mifare 4k check starts here */
         {
             /* Sector > 39 no ndef compliant sectors found*/
@@ -1935,10 +1991,19 @@ static NFCSTATUS phFriNfc_MifStd_H_ChkRdWr(phFriNfc_NdefMap_t *NdefMap)
 static void phFriNfc_MifStd_H_ChkNdefCmpltSects(phFriNfc_NdefMap_t *NdefMap)
 {
     uint8_t index = 0;
-
-    if(NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)
+    uint8_t index_max_4k_2k= 0;
+    if (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)
     {
-        for(index = PH_FRINFC_MIFARESTD_SECTOR_NO1; index < PH_FRINFC_MIFARESTD4K_TOTAL_SECTOR; index++)/*Block 0 is MAD block, so it should start with 1*/
+        index_max_4k_2k = PH_FRINFC_MIFARESTD4K_TOTAL_SECTOR;
+    }
+    else
+    {
+        index_max_4k_2k = PH_FRINFC_MIFARESTD2K_TOTAL_SECTOR;
+    }
+
+    if (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD || NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)
+    {
+        for (index = PH_FRINFC_MIFARESTD_SECTOR_NO1; index < index_max_4k_2k; index++)/*Block 0 is MAD block, so it should start with 1*/
         {
             /* For Mifare 4k, Block 0 to 31 contains 4 blocks */
             /* sector 0 and 15 are aid blocks */
@@ -3517,7 +3582,9 @@ static NFCSTATUS phFriNfc_MifStd_H_ProChkNdef(phFriNfc_NdefMap_t        *NdefMap
             (NdefMap->StdMifareContainer.currentBlock ==
             PH_FRINFC_MIFARESTD_MAD_BLK66) &&
             (NdefMap->CardType ==
-            PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)))
+            PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+            NdefMap->CardType ==
+            PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)))
     {
         /* Helper Function to Store AID Information */
         phFriNfc_MifStd_H_fillAIDarray(NdefMap);
@@ -3528,7 +3595,9 @@ static NFCSTATUS phFriNfc_MifStd_H_ProChkNdef(phFriNfc_NdefMap_t        *NdefMap
     else if((NdefMap->StdMifareContainer.currentBlock >
             PH_FRINFC_MIFARESTD_VAL1) &&
             (NdefMap->CardType ==
-            PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD))
+            PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+            NdefMap->CardType ==
+            PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD))
     {
         phFriNfc_MifStd_H_fillAIDarray(NdefMap);
         /* read remaining AIDs from block number 2 */
@@ -3693,7 +3762,8 @@ static NFCSTATUS phFriNfc_MifStd_H_ProAcsBits(phFriNfc_NdefMap_t        *NdefMap
                 {
                     NdefMap->StdMifareContainer.NFCforumSectFlag =
                         (((NdefMap->StdMifareContainer.currentBlock == 64) &&
-                        (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD))?
+                        ((NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)||
+                        (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)))?
                         NdefMap->StdMifareContainer.NFCforumSectFlag:
                                             PH_FRINFC_MIFARESTD_FLAG1);
                 }
@@ -3713,6 +3783,19 @@ static NFCSTATUS phFriNfc_MifStd_H_ProAcsBits(phFriNfc_NdefMap_t        *NdefMap
                         PH_FRINFC_MIFARESTD1K_MAX_BLK) &&
                         (NdefMap->CardType ==
                         PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD)) &&
+                        (NdefMap->StdMifareContainer.ReadCompleteFlag ==
+                        PH_FRINFC_MIFARESTD_FLAG0)) ||
+                        (NdefMap->StdMifareContainer.ReadCompleteFlag ==
+                        PH_FRINFC_MIFARESTD_FLAG1))?
+                        PH_FRINFC_MIFARESTD_FLAG1:
+                        PH_FRINFC_MIFARESTD_FLAG0);
+
+                    NdefMap->StdMifareContainer.ReadCompleteFlag =
+                    (uint8_t)((((((uint16_t)(NdefMap->StdMifareContainer.currentBlock +
+                        PH_FRINFC_MIFARESTD_VAL4) >=
+                        PH_FRINFC_MIFARESTD4K_MAX_BLK) &&
+                        (NdefMap->CardType ==
+                        PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)) &&
                         (NdefMap->StdMifareContainer.ReadCompleteFlag ==
                         PH_FRINFC_MIFARESTD_FLAG0)) ||
                         (NdefMap->StdMifareContainer.ReadCompleteFlag ==
@@ -3872,14 +3955,16 @@ static NFCSTATUS phFriNfc_MifStd_H_ProStatNotValid(phFriNfc_NdefMap_t        *Nd
                 (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD)) ||
                 ((NdefMap->StdMifareContainer.currentBlock <=
                 PH_FRINFC_MIFARESTD_MAD_BLK67) &&
-                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD)))
+                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+                 NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)))
             {
                 Result = PHNFCSTVAL( CID_FRI_NFC_NDEF_MAP,
                                     NFCSTATUS_NO_NDEF_SUPPORT);
             }
             else if((NdefMap->StdMifareContainer.currentBlock <
                 PH_FRINFC_MIFARESTD_BLK4) &&
-                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD))
+                (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD ||
+                 NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD))
             {
                 Result = NFCSTATUS_SUCCESS;
                 NdefMap->StdMifareContainer.currentBlock =
@@ -4021,7 +4106,7 @@ static NFCSTATUS phFriNfc_MifStd_H_ProBytesToWr(phFriNfc_NdefMap_t        *NdefM
 
     if(*NdefMap->SendRecvLength == PH_FRINFC_MIFARESTD_BYTES_READ)
     {
-        memcpy(&NdefMap->SendRecvBuf[PH_FRINFC_MIFARESTD_VAL1],
+        memmove(&NdefMap->SendRecvBuf[PH_FRINFC_MIFARESTD_VAL1],
                     NdefMap->SendRecvBuf,
                     PH_FRINFC_MIFARESTD_BLOCK_BYTES);
 
@@ -4803,6 +4888,8 @@ static NFCSTATUS phFriNfc_MifStd_H_BlkChk_1(phFriNfc_NdefMap_t        *NdefMap)
         PH_FRINFC_MIFARESTD_NDEF_COMP) &&
         (((SectorID <= PH_FRINFC_MIFARESTD_VAL15) &&
         (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD)) ||
+        ((SectorID <= PH_FRINFC_MIFARESTD_SECTOR_NO31) &&
+        (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD)) ||
         ((SectorID <= PH_FRINFC_MIFARESTD_SECTOR_NO39) &&
         (NdefMap->CardType == PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD))))
     {
@@ -5390,10 +5477,8 @@ NFCSTATUS phFrinfc_MifareClassic_GetContainerSize(const phFriNfc_NdefMap_t *Ndef
         multiplied by 16 bytes */
 
     /* Skip all the non ndef sectors */
-    while ((PH_FRINFC_MIFARESTD_NON_NDEF_COMP ==
-                NdefMap->StdMifareContainer.aid[sect_aid_index]) &&
-            (sect_aid_index <
-             PH_FRINFC_NDEFMAP_MIFARESTD_TOTALNO_BLK))
+    while ((sect_aid_index < PH_FRINFC_NDEFMAP_MIFARESTD_TOTALNO_BLK) &&
+          (PH_FRINFC_MIFARESTD_NON_NDEF_COMP == NdefMap->StdMifareContainer.aid[sect_aid_index]))
     {
         sect_aid_index++;
     }
@@ -5402,7 +5487,8 @@ NFCSTATUS phFrinfc_MifareClassic_GetContainerSize(const phFriNfc_NdefMap_t *Ndef
      while ((sect_aid_index <PH_FRINFC_NDEFMAP_MIFARESTD_TOTALNO_BLK)&&
            (PH_FRINFC_MIFARESTD_NDEF_COMP ==NdefMap->StdMifareContainer.aid[sect_aid_index]))
     {
-        if ((PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD == NdefMap->CardType) && (sect_aid_index >= 32))
+        if (((PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD == NdefMap->CardType)||
+             (PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD == NdefMap->CardType)) && (sect_aid_index >= 32))
         {
             /* Mifare classic card of 4k size, sector >= 32 has
                16 blocks per sector and in that 15 blocks are valid data blocks
@@ -5469,6 +5555,10 @@ phFriNfc_MifareStdMap_ConvertToReadOnly (
         if( PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD == NdefMap->CardType )
         {
             totalNoSectors  = PH_FRINFC_MIFARESTD1K_TOTAL_SECTOR;
+        }
+        else if ( PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD == NdefMap->CardType )
+        {
+            totalNoSectors  = PH_FRINFC_MIFARESTD2K_TOTAL_SECTOR;
         }
         else if ( PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD == NdefMap->CardType )
         {
@@ -5773,6 +5863,7 @@ static NFCSTATUS   phFriNfc_MapTool_ChkSpcVer( const phFriNfc_NdefMap_t  *NdefMa
         switch (NdefMap->CardType)
         {
             case PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD:
+            case PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD:
             case PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD:
                 {
                     /* calculate the major and minor version number of Mifare std version number */

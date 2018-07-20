@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ enum
     PH_FRINFC_SMTCRDFMT_MIFARE_UL_CARD,
     PH_FRINFC_SMTCRDFMT_ISO14443_4A_CARD,
     PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD,
+    PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD,
     PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD,
     PH_FRINFC_SMTCRDFMT_TOPAZ_CARD
 };

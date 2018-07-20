@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -207,10 +207,18 @@ NFCSTATUS EXTNS_MfcPresenceCheck(void)
     msg.pMsgData = NULL;
     msg.Size = 0;
 
-    status = phNxpExtns_SendMsg(&msg);
-    if( NFCSTATUS_SUCCESS != status )
+    gAuthCmdBuf.status = NFCSTATUS_FAILED;
+    if (sem_init (&gAuthCmdBuf.semPresenceCheck, 0, 0) == -1)
     {
-        NXPLOG_EXTNS_E("Error Sending msg to Extension Thread");
+        ALOGE("%s: semaphore creation failed (errno=%d)", __func__, errno);
+        return NFCSTATUS_FAILED;
+    }
+
+    status = phNxpExtns_SendMsg (&msg);
+    if (NFCSTATUS_SUCCESS != status)
+    {
+        NXPLOG_EXTNS_E ("Error Sending msg to Extension Thread");
+        sem_destroy (&gAuthCmdBuf.semPresenceCheck);
     }
 
     return status;
@@ -232,18 +240,18 @@ NFCSTATUS EXTNS_MfcPresenceCheck(void)
 **                  NFCSTATUS_FAILED otherwise
 **
 *******************************************************************************/
-NFCSTATUS EXTNS_MfcSetReadOnly(void)
+NFCSTATUS EXTNS_MfcSetReadOnly (uint8_t *key, uint8_t len)
 {
     NFCSTATUS status = NFCSTATUS_SUCCESS;
 
     phLibNfc_Message_t msg;
 
     msg.eMsgType = PH_NXPEXTNS_MIFARE_READ_ONLY;
-    msg.pMsgData = NULL;
-    msg.Size = 0;
+    msg.pMsgData = key;
+    msg.Size = len;
 
-    status = phNxpExtns_SendMsg(&msg);
-    if( NFCSTATUS_SUCCESS != status )
+    status = phNxpExtns_SendMsg (&msg);
+    if (NFCSTATUS_SUCCESS != status)
     {
         NXPLOG_EXTNS_E("Error Sending msg to Extension Thread");
     }
@@ -456,11 +464,11 @@ static NFCSTATUS phNxpExtns_ProcessSysMessage(phLibNfc_Message_t * msg){
             break;
 
         case PH_NXPEXTNS_MIFARE_CHECK_NDEF:
-            pthread_mutex_init(gAuthCmdBuf.syncmutex, NULL);
-            pthread_mutex_lock(gAuthCmdBuf.syncmutex);
+            pthread_mutex_init(&gAuthCmdBuf.syncmutex, NULL);
+            pthread_mutex_lock(&gAuthCmdBuf.syncmutex);
             status = Mfc_CheckNdef();
-            pthread_mutex_unlock(gAuthCmdBuf.syncmutex);
-            pthread_mutex_destroy(gAuthCmdBuf.syncmutex);
+            pthread_mutex_unlock(&gAuthCmdBuf.syncmutex);
+            pthread_mutex_destroy(&gAuthCmdBuf.syncmutex);
             break;
 
         case PH_NXPEXTNS_MIFARE_READ_NDEF:
@@ -488,15 +496,15 @@ static NFCSTATUS phNxpExtns_ProcessSysMessage(phLibNfc_Message_t * msg){
             break;
 
         case PH_NXPEXTNS_MIFARE_READ_ONLY:
-            status = Mfc_SetReadOnly();
+            status = Mfc_SetReadOnly (msg->pMsgData, msg->Size);
             break;
 
         case PH_NXPEXTNS_MIFARE_PRESENCE_CHECK:
-            pthread_mutex_init(gAuthCmdBuf.syncmutex, NULL);
-            pthread_mutex_lock(gAuthCmdBuf.syncmutex);
+            pthread_mutex_init(&gAuthCmdBuf.syncmutex, NULL);
+            pthread_mutex_lock(&gAuthCmdBuf.syncmutex);
             status = Mfc_PresenceCheck();
-            pthread_mutex_unlock(gAuthCmdBuf.syncmutex);
-            pthread_mutex_destroy(gAuthCmdBuf.syncmutex);
+            pthread_mutex_unlock(&gAuthCmdBuf.syncmutex);
+            pthread_mutex_destroy(&gAuthCmdBuf.syncmutex);
             break;
         default:
             status = NFCSTATUS_FAILED;
@@ -590,20 +598,27 @@ void EXTNS_SetCallBackFlag(bool_t flagval)
 
 NFCSTATUS EXTNS_GetPresenceCheckStatus(void)
 {
-    gAuthCmdBuf.status = NFCSTATUS_FAILED;
-    if (sem_init (&gAuthCmdBuf.semPresenceCheck, 0, 0) == -1)
+    struct timespec ts;
+
+    clock_gettime (CLOCK_REALTIME, &ts);
+    ts.tv_sec += 0;
+    ts.tv_nsec += 100*1000*1000; // 100 milliseconds
+    if (ts.tv_nsec >= 1000 * 1000 * 1000)
     {
-        ALOGE ("%s: semaphore creation failed (errno=0x%08x)", __FUNCTION__, errno);
-        return FALSE;
+        ts.tv_sec += 1;
+        ts.tv_nsec = ts.tv_nsec - (1000 * 1000 * 1000);
     }
-    if (sem_wait (&gAuthCmdBuf.semPresenceCheck))
+
+    if (sem_timedwait (&gAuthCmdBuf.semPresenceCheck, &ts))
     {
-        ALOGE ("%s: failed to wait (errno=0x%08x)", __FUNCTION__, errno);
-        return FALSE;
+        ALOGE("%s: failed to wait (errno=%d)", __func__, errno);
+        sem_destroy (&gAuthCmdBuf.semPresenceCheck);
+        gAuthCmdBuf.auth_sent = FALSE;
+        return NFCSTATUS_FAILED;
     }
     if (sem_destroy (&gAuthCmdBuf.semPresenceCheck))
     {
-        ALOGE ("Failed to destroy check Presence semaphore (errno=0x%08x)", errno);
+        ALOGE("%s: Failed to destroy check Presence semaphore (errno=%d)", __func__, errno);
     }
     return gAuthCmdBuf.status;
 }
@@ -614,7 +629,10 @@ void MfcPresenceCheckResult(NFCSTATUS status)
     EXTNS_SetCallBackFlag(TRUE);
     sem_post(&gAuthCmdBuf.semPresenceCheck);
 }
-
+void MfcResetPresenceCheckStatus (void)
+{
+    gAuthCmdBuf.auth_sent = FALSE;
+}
 /*******************************************************************************
 **
 ** Function         EXTNS_CheckMfcResponse

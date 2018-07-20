@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@
 
 #define PH_FRINFC_NDEFMAP_MIFARE_STD_1K_CARD              7 /* Mifare Standard */
 #define PH_FRINFC_NDEFMAP_MIFARE_STD_4K_CARD              8 /* Mifare Standard */
+#define PH_FRINFC_NDEFMAP_MIFARE_STD_2K_CARD              11 /*internal Mifare Standard */
 #define PH_FRINFC_NDEFMAP_EMPTY_NDEF_MSG                  {0xD0, 0x00, 0x00}  /* Empty ndef message */
 #define PH_FRINFC_NDEFMAP_MFUL_4BYTES_BUF                 4 /* To store 4 bytes after write */
 
@@ -66,6 +67,7 @@ typedef enum
  *
  */
 #define PH_FRINFC_NDEFMAP_MIFARESTD_1KNDEF_COMPBLOCK      45 /* Total Ndef Compliant blocks Mifare 1k */
+#define PH_FRINFC_NDEFMAP_MIFARESTD_2KNDEF_COMPBLOCK      90 /* Total Ndef Compliant blocks Mifare 2k */
 #define PH_FRINFC_NDEFMAP_MIFARESTD_4KNDEF_COMPBLOCK      210 /* Total Ndef Compliant blocks Mifare 4k */
 #define PH_FRINFC_NDEFMAP_MIFARESTD_RDWR_SIZE             16 /* Bytes read/write for one read/write operation*/
 #define PH_FRINFC_NDEFMAP_MIFARESTD_TOTALNO_BLK           40 /* Total number of sectors in Mifare 4k */

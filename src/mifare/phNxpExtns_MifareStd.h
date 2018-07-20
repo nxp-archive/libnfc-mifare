@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,7 @@ extern UINT8 current_key[];
                           {0xFF,0XFF,0xFF,0XFF,0xFF,0XFF},\
                           {0x00,0x00,0x00,0x00,0x00,0x00}} /* Key used during NDEF format */
 
+#define PH_FRINFC_CHECK_NDEF_TIMEOUT  (2000U) /* Mifare Check Ndef timeout value in milliseconds.*/
 
 #ifndef NCI_MAX_DATA_LEN
 #define NCI_MAX_DATA_LEN 300
@@ -174,22 +175,22 @@ typedef struct nci_data_package
 } nci_rsp_data_t;
 
 /*
- * Auth Cmd Data
+ * Mifare Callback function definition
+ */
+typedef void (*CallBackMifare_t)(void*, uint16_t);
+
+/*
+  * Auth Cmd Data
  */
 typedef struct nci_mfc_package
 {
     bool_t   auth_status;
     bool_t   auth_sent;
     sem_t    semPresenceCheck;
-    pthread_mutex_t *syncmutex;
+    pthread_mutex_t syncmutex;
     NFCSTATUS status;
     phNfc_sData_t *pauth_cmd;
 } phNci_mfc_auth_cmd_t;
-/*
- * Mifare Callback function definition
- */
-typedef void (*CallBackMifare_t)(void*, uint16_t);
-
 /*
  * Structure of callback functions from different module.
  * It includes the status also.
@@ -221,13 +222,13 @@ NFCSTATUS phNxpExtns_MfcModuleDeInit(void);
 NFCSTATUS Mfc_WriteNdef(uint8_t *p_data, uint32_t len);
 NFCSTATUS Mfc_CheckNdef(void);
 NFCSTATUS Mfc_ReadNdef(void);
-NFCSTATUS Mfc_PresenceCheck(void);
 NFCSTATUS Mfc_FormatNdef(uint8_t *secretkey, uint8_t len);
 NFCSTATUS Mfc_Transceive(uint8_t *p_data, uint32_t len);
-NFCSTATUS Mfc_SetReadOnly(void);
+NFCSTATUS Mfc_SetReadOnly(uint8_t *secrtkey, uint8_t len);
 void Mfc_DeactivateCbackSelect(void);
 void Mfc_ActivateCback(void);
 NFCSTATUS Mfc_RecvPacket(uint8_t *buff, uint8_t buffSz);
 NFCSTATUS phNxNciExtns_MifareStd_Reconnect(void);
+NFCSTATUS Mfc_PresenceCheck (void);
 
 #endif /* _PHNXPEXTNS_MFCRF_H_ */

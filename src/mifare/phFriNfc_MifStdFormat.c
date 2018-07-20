@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -275,6 +275,8 @@ static void phFriNfc_MfStd_H_FillSendBuf(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdFm
 //    void        *mem = NULL;                                                    /*commented to eliminate unused variable warning*/
     uint8_t     MADSectTr1k[] = PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_1K, /* MAD key A,
                                                                             Access bits and GPB of MAD sector */
+                MADSectTr2k[] = PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_2K, /* MAD key A,
+                                                                            Access bits and GPB of MAD sector */
                 MADSectTr4k[] = PH_FRINFC_SMTCRDFMT_MSTD_MADSECT_KEYA_ACS_BIT_4K, /* MAD key A,
                                                                                     Access bits and GPB of MAD sector */
                 NFCSectTr[] = PH_FRINFC_SMTCRDFMT_NFCFORUMSECT_KEYA_ACS_BIT, /* NFC forum key A,
@@ -340,6 +342,12 @@ static void phFriNfc_MfStd_H_FillSendBuf(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdFm
                     memcpy(&NdefSmtCrdFmt->SendRecvBuf[PH_FRINFC_MFSTD_FMT_VAL_1],
                                 MADSectTr1k,
                                 sizeof(MADSectTr1k));
+                }
+                else if (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)
+                {
+                    memcpy(&NdefSmtCrdFmt->SendRecvBuf[PH_FRINFC_MFSTD_FMT_VAL_1],
+                                 MADSectTr2k,
+                                 sizeof(MADSectTr2k));
                 }
                 else
                 {
@@ -904,14 +912,18 @@ static void phFriNfc_MfStd_H_ChangeAuthSt(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdF
     /* Get the maximum sector depending on the sector */
     MaxSect = ((CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)?
                 PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_1K:
-                PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K);
+                ((CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)?
+                  PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_2K:
+                  PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K));
     /* Sector index */
     NdefComplSectTemp = SectIndex = PH_FRINFC_MFSTD_FMT_VAL_1;
     /* Check the sector index depending on the card type */
     while(((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K) &&
         (CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD)) ||
         ((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_1K) &&
-        (CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)))
+        (CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD))||
+        ((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_2K) &&
+        (CardTypes == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)))
     {
         if (Sector[SectIndex] ==
             PH_FRINFC_MFSTD_FMT_NON_NDEF_COMPL)
@@ -948,7 +960,9 @@ static void phFriNfc_MfStd_H_ChangeAuthSt(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdF
     if((((count < (MaxSect - PH_FRINFC_MFSTD_FMT_VAL_1)) && (CardTypes
         == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)) ||
         ((count < (MaxSect - PH_FRINFC_MFSTD_FMT_VAL_2)) && (CardTypes
-        == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD))) &&
+        == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD)) ||
+        ((count < (MaxSect - PH_FRINFC_MFSTD_FMT_VAL_2)) && (CardTypes
+        == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)))&&
         ((NdefComplSectMax > PH_FRINFC_MFSTD_FMT_VAL_0) &&
         (NdefComplSectMax < (MaxSect - PH_FRINFC_MFSTD_FMT_VAL_2))))
     {
@@ -1181,7 +1195,8 @@ static void phFriNfc_MfStd_H_StrNdefData(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdFm
      */
     NdefSmtCrdFmt->AddInfo.MfStdInfo.MADSectBlk[PH_FRINFC_MFSTD_FMT_VAL_1] = 0x01;
 
-    if(NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD)
+    if((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD) ||
+       (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD))
     {
         /* If 4k card then sector number 16 is MAD sector, CRC is 0xE8 */
         NdefSmtCrdFmt->AddInfo.MfStdInfo.MADSectBlk[32] = 0xE8;
@@ -1197,7 +1212,9 @@ static void phFriNfc_MfStd_H_StrNdefData(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdFm
     while (((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K) &&
         (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD)) ||
         ((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_1K) &&
-        (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)))
+        (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)) ||
+        ((SectIndex < PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_2K) &&
+        (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)))
     {
         /* Is the sector ndef compliant? */
         if(NdefSmtCrdFmt->AddInfo.MfStdInfo.SectCompl[SectIndex] ==
@@ -1255,7 +1272,9 @@ static void phFriNfc_MfStd_H_BlkNoToWrTLV(phFriNfc_sNdefSmtCrdFmt_t *NdefSmtCrdF
     while (((SectIndex < (uint8_t)PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_4K) &&
         (NdefSmtCrdFmt->CardType == (uint8_t)PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD)) ||
         ((SectIndex < (uint8_t)PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_1K) &&
-        (NdefSmtCrdFmt->CardType == (uint8_t)PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)))
+        (NdefSmtCrdFmt->CardType == (uint8_t)PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD)) ||
+        ((SectIndex < (uint8_t)PH_FRINFC_MFSTD_FMT_MAX_SECT_IND_2K) &&
+        (NdefSmtCrdFmt->CardType == (uint8_t)PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD)))
     {
         if (NdefSmtCrdFmt->AddInfo.MfStdInfo.SectCompl[SectIndex] ==
             (uint8_t)PH_FRINFC_MFSTD_FMT_NDEF_COMPL)

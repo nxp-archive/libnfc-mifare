@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 NXP Semiconductors
+ * Copyright (C) 2010-2018 NXP Semiconductors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -178,7 +178,8 @@ void phFriNfc_NdefSmtCrd_Process(void *Context, NFCSTATUS Status)
             case phNfc_eMifare_PICC :
             case phNfc_eISO14443_3A_PICC:
                 if((NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_1K_CRD) ||
-                    (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD))
+                    (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_4K_CRD) ||
+                    (NdefSmtCrdFmt->CardType == PH_FRINFC_SMTCRDFMT_MFSTD_2K_CRD))
                 {
                     /* Remote device is Mifare Standard card */
                     phFriNfc_MfStd_Process(NdefSmtCrdFmt,Status);
